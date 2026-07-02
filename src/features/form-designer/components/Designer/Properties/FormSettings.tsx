@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useDesignerStore } from '../../../store/designerStore';
 import type { FormTheme } from '../../../types/schema';
 import { Search, ChevronDown, CheckCircle as Check } from '@/lib/icons';
+import { cn } from '../../../utils/cn';
 
 // ── 50 themes ───────────────────────────────────────────────────────────────
 interface ThemeDef extends FormTheme {
@@ -71,26 +72,75 @@ const THEMES: ThemeDef[] = [
   { id: 'mediterranean',     name: 'Mediterranean',     group: 'Regional', preset: 'custom', primaryColor: '#b45309', labelColor: '#1c1917', fieldBackground: '#fffbeb', borderColor: '#fcd34d', borderRadius: 8,  fontSize: 'md', density: 'normal',      fontFamily: 'Georgia, serif' },
 ];
 
+// ── FxField ──────────────────────────────────────────────────────────────────
+// A labeled field row with an optional {}fx expression binding button.
+function FxField({
+  label,
+  bindings,
+  propKey,
+  onBind,
+  children,
+}: {
+  label: string;
+  bindings: Record<string, string>;
+  propKey: string;
+  onBind: (key: string, val: string) => void;
+  children: React.ReactNode;
+}) {
+  const isBound = !!bindings[propKey];
+  const [exprMode, setExprMode] = useState(isBound);
+
+  function toggleExpr() {
+    const next = !exprMode;
+    setExprMode(next);
+    if (!next && isBound) onBind(propKey, '');
+  }
+
+  const active = exprMode || isBound;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-xs text-gray-500">{label}</label>
+        <button
+          onClick={toggleExpr}
+          className={cn(
+            'flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md transition-all leading-none border',
+            active
+              ? 'bg-violet-600 text-white border-violet-700 shadow-sm'
+              : 'text-gray-400 border-gray-200 hover:border-violet-400 hover:text-violet-600 hover:bg-violet-50',
+          )}
+        >
+          <span className="font-mono">{'{}'}</span>
+          <span>fx</span>
+        </button>
+      </div>
+      {active ? (
+        <input
+          value={bindings[propKey] ?? ''}
+          onChange={e => onBind(propKey, e.target.value)}
+          className="input-base font-mono text-xs text-violet-700 bg-violet-50 border-violet-200 placeholder:text-violet-300"
+          placeholder="= expression or {{field}}"
+          autoFocus
+        />
+      ) : (
+        children
+      )}
+    </div>
+  );
+}
+
 // ── Theme Selector ───────────────────────────────────────────────────────────
 function ThemeSelector() {
   const { schema, updateSchema } = useDesignerStore();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
 
   const activeTheme = THEMES.find(t =>
     t.primaryColor === schema.theme.primaryColor &&
     t.fieldBackground === schema.theme.fieldBackground &&
     t.borderColor === schema.theme.borderColor
   ) ?? THEMES[0];
-
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   const filtered = query.trim()
     ? THEMES.filter(t => t.name.toLowerCase().includes(query.toLowerCase()) || t.group.toLowerCase().includes(query.toLowerCase()))
@@ -106,13 +156,11 @@ function ThemeSelector() {
   }
 
   return (
-    <div ref={ref} className="relative">
-      {/* Trigger */}
+    <div className="relative">
       <button
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg bg-white hover:border-indigo-400 transition-colors text-sm"
       >
-        {/* Color swatches */}
         <span className="flex gap-0.5 shrink-0">
           {[activeTheme.primaryColor, activeTheme.fieldBackground, activeTheme.borderColor, activeTheme.labelColor].map((c, i) => (
             <span key={i} style={{ background: c, width: 12, height: 12, borderRadius: 2, border: '1px solid #e5e7eb', display: 'inline-block' }} />
@@ -123,10 +171,8 @@ function ThemeSelector() {
         <ChevronDown size={14} className="text-gray-400 shrink-0" />
       </button>
 
-      {/* Dropdown */}
       {open && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-80 overflow-hidden flex flex-col">
-          {/* Search */}
           <div className="p-2 border-b border-gray-100 shrink-0">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -139,7 +185,6 @@ function ThemeSelector() {
               />
             </div>
           </div>
-          {/* List */}
           <div className="overflow-y-auto flex-1 p-1">
             {groups.map(group => (
               <div key={group}>
@@ -161,7 +206,7 @@ function ThemeSelector() {
                 ))}
               </div>
             ))}
-            {filtered.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No themes match "{query}"</p>}
+            {filtered.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No themes match “{query}”</p>}
           </div>
         </div>
       )}
@@ -185,12 +230,54 @@ function ColorRow({ label, value, onChange }: { label: string; value: string; on
 
 // ── FormSettings ─────────────────────────────────────────────────────────────
 export function FormSettings() {
-  const { schema, updateSchema } = useDesignerStore();
+  const { schema, updateSchema, activePageIndex, updatePage } = useDesignerStore();
   const t = schema.theme;
   const updTheme = (patch: Partial<FormTheme>) => updateSchema({ theme: { ...t, ...patch } });
 
+  const activePage = schema.pages[activePageIndex];
+  const pageBindings: Record<string, string> = (activePage?.bindings ?? {});
+  const formBindings: Record<string, string> = (schema.bindings ?? {});
+
+  function setPageBinding(key: string, val: string) {
+    if (!activePage) return;
+    const next = { ...pageBindings };
+    if (val === '') delete next[key]; else next[key] = val;
+    updatePage(activePage.id, { bindings: next });
+  }
+
+  function setFormBinding(key: string, val: string) {
+    const next = { ...formBindings };
+    if (val === '') delete next[key]; else next[key] = val;
+    updateSchema({ bindings: next });
+  }
+
   return (
     <div className="p-4 space-y-5 overflow-y-auto h-full">
+
+      {/* Page Properties */}
+      {activePage && (
+        <section className="space-y-3">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Page Properties</h3>
+          <FxField label="Page Title" bindings={pageBindings} propKey="title" onBind={setPageBinding}>
+            <input
+              value={activePage.title}
+              onChange={e => updatePage(activePage.id, { title: e.target.value })}
+              className="input-base text-xs"
+              placeholder="Page title"
+            />
+          </FxField>
+          <FxField label="Page Description" bindings={pageBindings} propKey="description" onBind={setPageBinding}>
+            <textarea
+              rows={2}
+              value={activePage.description ?? ''}
+              onChange={e => updatePage(activePage.id, { description: e.target.value })}
+              className="input-base text-xs resize-none"
+              placeholder="Optional page description…"
+            />
+          </FxField>
+        </section>
+      )}
+
       {/* Theme picker */}
       <section>
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Theme</h3>
@@ -250,17 +337,26 @@ export function FormSettings() {
         </div>
       </section>
 
-      {/* Form metadata */}
+      {/* Form Metadata */}
       <section className="space-y-3 border-t border-gray-100 pt-4">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Form Metadata</h3>
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Title</label>
-          <input value={schema.title} onChange={e => updateSchema({ title: e.target.value })} className="input-base text-xs" placeholder="Form title" />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Description</label>
-          <textarea rows={2} value={schema.description ?? ''} onChange={e => updateSchema({ description: e.target.value })} className="input-base text-xs resize-none" placeholder="Optional description…" />
-        </div>
+        <FxField label="Title" bindings={formBindings} propKey="title" onBind={setFormBinding}>
+          <input
+            value={schema.title}
+            onChange={e => updateSchema({ title: e.target.value })}
+            className="input-base text-xs"
+            placeholder="Form title"
+          />
+        </FxField>
+        <FxField label="Description" bindings={formBindings} propKey="description" onBind={setFormBinding}>
+          <textarea
+            rows={2}
+            value={schema.description ?? ''}
+            onChange={e => updateSchema({ description: e.target.value })}
+            className="input-base text-xs resize-none"
+            placeholder="Optional description…"
+          />
+        </FxField>
       </section>
     </div>
   );

@@ -184,7 +184,7 @@ export interface FieldElement extends BaseElement {
   maxStars?: number;
   allowHalf?: boolean;
   icon?: string;
-  calendarType?: 'gregorian' | 'hijri' | 'both';
+  calendarType?: 'gregorian' | 'umm-al-qura' | 'both';
   timeFormat?: '12h' | '24h';
   minuteStep?: number;
   showSeconds?: boolean;
@@ -289,6 +289,7 @@ export interface FormPage {
   description?: string;
   condition?: LogicRule | null;
   elements: FormElement[];
+  bindings?: Record<string, string>;
 }
 
 // ─── Theme ──────────────────────────────────────────────────────────────────
@@ -336,4 +337,5 @@ export interface FormDefinition {
   pages: FormPage[];
   globalLogic: LogicRule[];
   variables: FormVariable[];
+  bindings?: Record<string, string>;
 }
