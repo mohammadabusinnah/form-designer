@@ -19,6 +19,18 @@
 
 # production
 /build
+/dist
+/dist3
+/dist4
+/dist5
+
+# serve scripts (local dev only)
+serve*.bat
+serve*.cjs
+serve*.js
+start.bat
+setup.bat
+err.txt
 
 # misc
 .DS_Store
