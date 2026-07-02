@@ -130,7 +130,7 @@ function FieldPreview({ el, dir, theme }: { el: FieldElement; dir: 'ltr' | 'rtl'
           {(el as any).content || 'Paragraph text'}
         </p>
       ) : el.type === 'divider' ? (
-        <hr style={{ borderColor: rs.borderColor, borderWidth: rs.borderWidth, margin: `${(el as any).margin ?? 8}px 0` }} />
+        <hr style={{ borderColor: rs.borderColor, borderWidth: rs.borderWidth, margin: `${(el as any).margin ?? 16}px 0` }} />
       ) : el.type === 'spacer' ? (
         <div style={{ height: (el as any).height ?? 24 }} />
       ) : el.type === 'hidden' ? (
@@ -167,130 +167,202 @@ function FieldInput({ el, rs }: { el: FieldElement; rs: ResolvedStyle }) {
 
   const baseClass = 'w-full text-sm pointer-events-none';
 
+  // Helper: check if defaultValue is meaningfully set
+  const dv = el.defaultValue;
+  const hasDV = dv !== undefined && dv !== null && String(dv) !== '';
+
   switch (el.type) {
-    case 'text': case 'email': case 'phone': case 'url': case 'password':
-      return <div className={baseClass} style={inputStyle}>{el.placeholder || el.label}</div>;
-
-    case 'currency':
+    case 'text': case 'email': case 'phone': case 'url': case 'password': {
+      const display = hasDV ? String(dv) : null;
       return (
-        <div className={baseClass} style={inputStyle}>
-          {(el as any).prefix}{el.placeholder || '0.00'}{(el as any).suffix}
+        <div className={baseClass} style={{ ...inputStyle, color: display ? rs.fieldTextColor : '#9ca3af' }}>
+          {display || el.placeholder || el.label}
         </div>
       );
+    }
 
-    case 'number':
+    case 'currency': {
+      const display = hasDV ? String(dv) : null;
       return (
-        <div className={baseClass} style={inputStyle}>
-          {(el as any).prefix}{el.placeholder || '0'}{(el as any).suffix}
+        <div className={baseClass} style={{ ...inputStyle, color: display ? rs.fieldTextColor : '#9ca3af' }}>
+          {(el as any).prefix}{display ?? el.placeholder ?? '0.00'}{(el as any).suffix}
         </div>
       );
+    }
 
-    case 'longtext':
+    case 'number': {
+      const display = hasDV ? String(dv) : null;
       return (
-        <div className={baseClass} style={{ ...inputStyle, minHeight: 80 }}>
-          {el.placeholder || el.label}
+        <div className={baseClass} style={{ ...inputStyle, color: display ? rs.fieldTextColor : '#9ca3af' }}>
+          {(el as any).prefix}{display ?? el.placeholder ?? '0'}{(el as any).suffix}
         </div>
       );
+    }
 
-    case 'dropdown': case 'multiselect':
+    case 'longtext': {
+      const display = hasDV ? String(dv) : null;
+      return (
+        <div className={baseClass} style={{ ...inputStyle, minHeight: 80, color: display ? rs.fieldTextColor : '#9ca3af' }}>
+          {display || el.placeholder || el.label}
+        </div>
+      );
+    }
+
+    case 'dropdown': {
+      const selected = hasDV ? (el.options ?? []).find(o => o.value === String(dv)) : null;
       return (
         <div className={cn(baseClass, 'flex items-center justify-between')} style={inputStyle}>
-          <span style={{ color: '#9ca3af' }}>{el.placeholder || 'Select…'}</span>
+          <span style={{ color: selected ? rs.fieldTextColor : '#9ca3af' }}>
+            {selected ? selected.label : (el.placeholder || 'Select…')}
+          </span>
           <ChevronDown size={14} style={{ color: '#9ca3af' }} />
         </div>
       );
+    }
 
-    case 'radio':
+    case 'multiselect': {
+      const selectedVals = hasDV ? String(dv).split(',').map(s => s.trim()) : [];
+      const selectedOpts = selectedVals.length > 0
+        ? (el.options ?? []).filter(o => selectedVals.includes(o.value))
+        : [];
       return (
-        <div className="flex flex-col gap-1.5">
-          {(el.options ?? []).slice(0, 4).map((o, i) => (
-            <label key={o.value} className="flex items-center gap-2 text-sm cursor-default" style={{ color: rs.fieldTextColor, fontSize: rs.fontSize }}>
-              <div className="w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center"
-                style={{ borderColor: i === 0 ? rs.accentColor : rs.borderColor }}>
-                {i === 0 && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: rs.accentColor }} />}
-              </div>
-              {o.label}
-            </label>
-          ))}
+        <div className={cn(baseClass, 'flex items-center justify-between gap-1 flex-wrap')} style={inputStyle}>
+          {selectedOpts.length > 0
+            ? selectedOpts.map(o => (
+                <span key={o.value} className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: rs.accentColor + '22', color: rs.accentColor }}>
+                  {o.label}
+                </span>
+              ))
+            : <span style={{ color: '#9ca3af' }}>{el.placeholder || 'Select…'}</span>
+          }
+          <ChevronDown size={14} style={{ color: '#9ca3af', marginLeft: 'auto' }} />
         </div>
       );
+    }
 
-    case 'checkbox':
+    case 'radio': {
+      const selectedVal = hasDV ? String(dv) : (el.options?.[0]?.value ?? '');
       return (
         <div className="flex flex-col gap-1.5">
-          {(el.options ?? []).slice(0, 4).map((o, i) => (
-            <label key={o.value} className="flex items-center gap-2 text-sm cursor-default" style={{ color: rs.fieldTextColor, fontSize: rs.fontSize }}>
-              <div className="w-4 h-4 rounded shrink-0 border flex items-center justify-center"
-                style={{ borderColor: i === 0 ? rs.accentColor : rs.borderColor, backgroundColor: i === 0 ? rs.accentColor : 'transparent' }}>
-                {i === 0 && <span className="text-white text-xs leading-none">✓</span>}
-              </div>
-              {o.label}
-            </label>
-          ))}
+          {(el.options ?? []).slice(0, 4).map(o => {
+            const active = o.value === selectedVal;
+            return (
+              <label key={o.value} className="flex items-center gap-2 text-sm cursor-default" style={{ color: rs.fieldTextColor, fontSize: rs.fontSize }}>
+                <div className="w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center"
+                  style={{ borderColor: active ? rs.accentColor : rs.borderColor }}>
+                  {active && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: rs.accentColor }} />}
+                </div>
+                {o.label}
+              </label>
+            );
+          })}
         </div>
       );
+    }
 
-    case 'toggle':
+    case 'checkbox': {
+      const selectedVals = hasDV
+        ? String(dv).split(',').map(s => s.trim())
+        : (el.options?.[0] ? [el.options[0].value] : []);
+      return (
+        <div className="flex flex-col gap-1.5">
+          {(el.options ?? []).slice(0, 4).map(o => {
+            const active = selectedVals.includes(o.value);
+            return (
+              <label key={o.value} className="flex items-center gap-2 text-sm cursor-default" style={{ color: rs.fieldTextColor, fontSize: rs.fontSize }}>
+                <div className="w-4 h-4 rounded shrink-0 border flex items-center justify-center"
+                  style={{ borderColor: active ? rs.accentColor : rs.borderColor, backgroundColor: active ? rs.accentColor : 'transparent' }}>
+                  {active && <span className="text-white text-xs leading-none">✓</span>}
+                </div>
+                {o.label}
+              </label>
+            );
+          })}
+        </div>
+      );
+    }
+
+    case 'toggle': {
+      // defaultValue 'true' / el.onValue = on, otherwise off
+      const isOn = hasDV ? String(dv) !== 'false' && String(dv) !== '' : false;
       return (
         <div className="flex items-center gap-2">
-          <div className="w-10 h-5 rounded-full relative" style={{ backgroundColor: rs.accentColor }}>
-            <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm" />
+          <div className="w-10 h-5 rounded-full relative transition-colors"
+            style={{ backgroundColor: isOn ? rs.accentColor : rs.borderColor }}>
+            <div className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all', isOn ? 'right-0.5' : 'left-0.5')} />
           </div>
-          <span className="text-sm" style={{ color: rs.fieldTextColor, fontSize: rs.fontSize }}>{el.onLabel ?? 'On'}</span>
+          <span className="text-sm" style={{ color: rs.fieldTextColor, fontSize: rs.fontSize }}>
+            {isOn ? (el.onLabel ?? 'On') : (el.offLabel ?? 'Off')}
+          </span>
         </div>
       );
+    }
 
-    case 'yesno':
+    case 'yesno': {
+      const yesVal = (el as any).yesLabel ?? 'Yes';
+      const noVal  = (el as any).noLabel  ?? 'No';
+      // defaultValue 'true'/'yes' selects Yes, 'false'/'no' selects No, null = no selection (show Yes active as default)
+      const isYes = hasDV ? !['false','no','0'].includes(String(dv).toLowerCase()) : true;
       return (
         <div className="flex gap-2">
           <button className="px-4 py-1.5 rounded text-sm pointer-events-none"
-            style={{ borderColor: rs.accentColor, borderWidth: 1, borderStyle: 'solid', backgroundColor: rs.accentColor, color: '#fff', fontSize: rs.fontSize, borderRadius: rs.borderRadius }}>
-            {(el as any).yesLabel ?? 'Yes'}
+            style={{ borderWidth: 1, borderStyle: 'solid', borderColor: isYes ? rs.accentColor : rs.borderColor, backgroundColor: isYes ? rs.accentColor : rs.fieldBg, color: isYes ? '#fff' : rs.fieldTextColor, fontSize: rs.fontSize, borderRadius: rs.borderRadius }}>
+            {yesVal}
           </button>
           <button className="px-4 py-1.5 rounded text-sm pointer-events-none"
-            style={{ borderColor: rs.borderColor, borderWidth: rs.borderWidth, borderStyle: 'solid', backgroundColor: rs.fieldBg, color: rs.fieldTextColor, fontSize: rs.fontSize, borderRadius: rs.borderRadius }}>
-            {(el as any).noLabel ?? 'No'}
+            style={{ borderWidth: 1, borderStyle: 'solid', borderColor: !isYes ? rs.accentColor : rs.borderColor, backgroundColor: !isYes ? rs.accentColor : rs.fieldBg, color: !isYes ? '#fff' : rs.fieldTextColor, fontSize: rs.fontSize, borderRadius: rs.borderRadius }}>
+            {noVal}
           </button>
         </div>
       );
+    }
 
-    case 'buttongroup':
+    case 'buttongroup': {
+      const selectedVal = hasDV ? String(dv) : (el.options?.[0]?.value ?? '');
       return (
         <div className="flex gap-1 flex-wrap">
-          {(el.options ?? []).map((o, i) => (
-            <button key={o.value} className="px-3 py-1.5 text-sm pointer-events-none"
-              style={{
-                borderRadius: rs.borderRadius,
-                borderWidth: rs.borderWidth,
-                borderStyle: 'solid',
-                borderColor: i === 0 ? rs.accentColor : rs.borderColor,
-                backgroundColor: i === 0 ? rs.accentColor : rs.fieldBg,
-                color: i === 0 ? '#fff' : rs.fieldTextColor,
-                fontSize: rs.fontSize,
-              }}>
-              {o.label}
-            </button>
-          ))}
+          {(el.options ?? []).map(o => {
+            const active = o.value === selectedVal;
+            return (
+              <button key={o.value} className="px-3 py-1.5 text-sm pointer-events-none"
+                style={{
+                  borderRadius: rs.borderRadius,
+                  borderWidth: rs.borderWidth,
+                  borderStyle: 'solid',
+                  borderColor: active ? rs.accentColor : rs.borderColor,
+                  backgroundColor: active ? rs.accentColor : rs.fieldBg,
+                  color: active ? '#fff' : rs.fieldTextColor,
+                  fontSize: rs.fontSize,
+                }}>
+                {o.label}
+              </button>
+            );
+          })}
         </div>
       );
+    }
 
     case 'rating': {
       const min = (el as any).min ?? 0;
       const max = (el as any).max ?? 10;
+      const selectedN = hasDV ? Number(dv) : null;
       return (
         <div className="space-y-1">
           <div className="flex gap-1 flex-wrap">
-            {Array.from({ length: max - min + 1 }, (_, i) => i + min).map(n => (
-              <button key={n} className="w-7 h-7 text-xs pointer-events-none flex items-center justify-center"
-                style={{ borderRadius: rs.borderRadius, borderWidth: 1, borderStyle: 'solid', borderColor: rs.borderColor, color: rs.fieldTextColor, fontSize: rs.fontSize, backgroundColor: rs.fieldBg }}>
-                {n}
-              </button>
-            ))}
+            {Array.from({ length: max - min + 1 }, (_, i) => i + min).map(n => {
+              const active = selectedN !== null && n === selectedN;
+              return (
+                <button key={n} className="w-7 h-7 text-xs pointer-events-none flex items-center justify-center"
+                  style={{ borderRadius: rs.borderRadius, borderWidth: 1, borderStyle: 'solid', borderColor: active ? rs.accentColor : rs.borderColor, color: active ? '#fff' : rs.fieldTextColor, fontSize: rs.fontSize, backgroundColor: active ? rs.accentColor : rs.fieldBg }}>
+                  {n}
+                </button>
+              );
+            })}
           </div>
-          {((el as any).lowLabel || (el as any).highLabel) && (
+          {(el.minLabel || el.maxLabel) && (
             <div className="flex justify-between text-xs" style={{ color: '#9ca3af' }}>
-              <span>{(el as any).lowLabel}</span>
-              <span>{(el as any).highLabel}</span>
+              <span>{el.minLabel}</span>
+              <span>{el.maxLabel}</span>
             </div>
           )}
         </div>
@@ -299,10 +371,11 @@ function FieldInput({ el, rs }: { el: FieldElement; rs: ResolvedStyle }) {
 
     case 'starrating': {
       const stars = el.maxStars ?? 5;
+      const filledCount = hasDV ? Math.min(Math.max(0, Number(dv)), stars) : 2;
       return (
         <div className="flex gap-1">
           {Array.from({ length: stars }, (_, i) => (
-            <span key={i} className="text-xl" style={{ color: i < 2 ? rs.accentColor : rs.borderColor }}>★</span>
+            <span key={i} className="text-xl" style={{ color: i < filledCount ? rs.accentColor : rs.borderColor }}>★</span>
           ))}
         </div>
       );
@@ -311,15 +384,17 @@ function FieldInput({ el, rs }: { el: FieldElement; rs: ResolvedStyle }) {
     case 'slider': {
       const min = el.min ?? 0;
       const max = el.max ?? 100;
+      const val = hasDV ? Number(dv) : min + (max - min) / 3;
+      const pct = max > min ? ((val - min) / (max - min)) * 100 : 0;
       return (
         <div className="px-1">
           <div className="h-2 rounded-full relative" style={{ backgroundColor: rs.borderColor }}>
-            <div className="absolute left-0 top-0 h-full w-1/3 rounded-full" style={{ backgroundColor: rs.accentColor }} />
-            <div className="absolute left-1/3 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow -translate-x-1/2"
-              style={{ border: `2px solid ${rs.accentColor}` }} />
+            <div className="absolute left-0 top-0 h-full rounded-full" style={{ backgroundColor: rs.accentColor, width: `${pct}%` }} />
+            <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow -translate-x-1/2"
+              style={{ border: `2px solid ${rs.accentColor}`, left: `${pct}%` }} />
           </div>
           <div className="flex justify-between text-xs mt-1" style={{ color: '#9ca3af' }}>
-            <span>{min}</span><span>{max}</span>
+            <span>{min}</span><span>{hasDV ? val : ''}</span><span>{max}</span>
           </div>
         </div>
       );
@@ -503,27 +578,70 @@ function FieldInput({ el, rs }: { el: FieldElement; rs: ResolvedStyle }) {
     }
 
     case 'stepindicator': {
-      const steps   = (el as any).steps ?? [{ label: 'Step 1' }, { label: 'Step 2' }, { label: 'Step 3' }];
-      const active  = (el as any).previewStep ?? 0;
-      const sStyle  = (el as any).stepStyle ?? 'numbers';
-      const orient  = (el as any).orientation ?? 'horizontal';
+      const steps      = (el as any).steps ?? [{ label: 'Step 1' }, { label: 'Step 2' }, { label: 'Step 3' }];
+      const active     = (el as any).previewStep ?? 0;
+      const sStyle     = (el as any).stepStyle ?? 'numbers';
+      const orient     = (el as any).orientation ?? 'horizontal';
       const compColor  = (el as any).completedColor ?? rs.accentColor;
       const activeColor = (el as any).activeColor ?? rs.accentColor;
-      const pendColor   = (el as any).pendingColor ?? rs.borderColor;
+      const pendColor  = (el as any).pendingColor ?? rs.borderColor;
+      const showLbls   = (el as any).showLabels !== false;
       const isH = orient === 'horizontal';
+
+      if (isH) {
+        // Horizontal: circles + connectors in a row, labels below each circle
+        return (
+          <div>
+            {/* Row 1: circles and connectors */}
+            <div className="flex items-center">
+              {steps.map((s: any, i: number) => {
+                const done    = i < active;
+                const current = i === active;
+                const col     = done ? compColor : current ? activeColor : pendColor;
+                return (
+                  <div key={i} className="flex items-center flex-1">
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: done || current ? col : 'transparent', border: `2px solid ${col}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: done || current ? '#fff' : col, flexShrink: 0 }}>
+                      {done ? '✓' : sStyle === 'dots' ? '' : i + 1}
+                    </div>
+                    {i < steps.length - 1 && (
+                      <div style={{ flex: 1, height: 2, backgroundColor: done ? compColor : pendColor, margin: '0 4px' }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Row 2: labels below circles (if enabled) */}
+            {showLbls && (
+              <div className="flex mt-1.5">
+                {steps.map((s: any, i: number) => {
+                  const done    = i < active;
+                  const current = i === active;
+                  const col     = done ? compColor : current ? activeColor : '#9ca3af';
+                  return (
+                    <div key={i} className="flex-1 flex" style={{ justifyContent: i === steps.length - 1 ? 'flex-end' : i === 0 ? 'flex-start' : 'center' }}>
+                      <span style={{ fontSize: 11, color: col }}>{s.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // Vertical layout
       return (
-        <div className={cn('flex', isH ? 'flex-row items-center' : 'flex-col gap-3')}>
+        <div className="flex flex-col gap-3">
           {steps.map((s: any, i: number) => {
             const done    = i < active;
             const current = i === active;
             const col     = done ? compColor : current ? activeColor : pendColor;
             return (
-              <div key={i} className={cn('flex', isH ? 'flex-col items-center flex-1' : 'flex-row items-center gap-2')}>
+              <div key={i} className="flex items-center gap-2">
                 <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: done || current ? col : 'transparent', border: `2px solid ${col}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: done || current ? '#fff' : col, flexShrink: 0 }}>
                   {done ? '✓' : sStyle === 'dots' ? '' : i + 1}
                 </div>
-                {(el as any).showLabels !== false && <div style={{ fontSize: 11, color: done || current ? col : '#9ca3af', marginTop: isH ? 4 : 0 }}>{s.label}</div>}
-                {isH && i < steps.length - 1 && <div style={{ height: 2, flex: 1, backgroundColor: done ? compColor : pendColor, margin: '0 2px' }} />}
+                {showLbls && <div style={{ fontSize: 11, color: done || current ? col : '#9ca3af' }}>{s.label}</div>}
               </div>
             );
           })}
@@ -716,7 +834,7 @@ function FramePreview({ el }: { el: FrameElement }) {
   };
   const accent = variantColors[el.variant ?? 'info'];
   const iconMap: Record<string, React.ReactNode> = {
-    info: <Info size={16} />, warning: <AlertTriangle size={16} />, success: <CheckCircle size={16} />, neutral: <AlertCircle size={16} />,
+    info: <Info size={16} />, warning: <AlertTriangle size={16} />, success: <CheckCircle size={16} />, neutral: <AlertCircle size={16} />, custom: <Info size={16} />,
   };
   return (
     <div className="rounded-lg border-l-4 p-3" style={{ borderLeftColor: accent, backgroundColor: accent + '10', borderColor: rs.borderColor, borderWidth: 1, borderStyle: 'solid' }}>

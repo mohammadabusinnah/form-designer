@@ -150,9 +150,15 @@ function GeneralTab({ element, upd }: { element: FormElement; upd: (p: any) => v
       )}
       {/* Toggle */}
       {element.type === 'toggle' && (
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="On Label"><input value={el.onLabel ?? 'Yes'} onChange={e => upd({ onLabel: e.target.value })} className="input-base" /></Field>
-          <Field label="Off Label"><input value={el.offLabel ?? 'No'} onChange={e => upd({ offLabel: e.target.value })} className="input-base" /></Field>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="On Label"><input value={el.onLabel ?? 'Yes'} onChange={e => upd({ onLabel: e.target.value })} className="input-base" /></Field>
+            <Field label="Off Label"><input value={el.offLabel ?? 'No'} onChange={e => upd({ offLabel: e.target.value })} className="input-base" /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="On Value"><input value={el.onValue ?? 'true'} onChange={e => upd({ onValue: e.target.value })} className="input-base font-mono text-xs" placeholder="true" /></Field>
+            <Field label="Off Value"><input value={el.offValue ?? 'false'} onChange={e => upd({ offValue: e.target.value })} className="input-base font-mono text-xs" placeholder="false" /></Field>
+          </div>
         </div>
       )}
       {/* Number/Currency/Slider range */}
@@ -204,8 +210,8 @@ function GeneralTab({ element, upd }: { element: FormElement; upd: (p: any) => v
             <Field label="Max"><input type="number" value={(el as any).max ?? 10} onChange={e => upd({ max: Number(e.target.value) })} className="input-base" /></Field>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Low Label"><input value={(el as any).lowLabel ?? ''} onChange={e => upd({ lowLabel: e.target.value })} className="input-base" placeholder="Not likely" /></Field>
-            <Field label="High Label"><input value={(el as any).highLabel ?? ''} onChange={e => upd({ highLabel: e.target.value })} className="input-base" placeholder="Very likely" /></Field>
+            <Field label="Low Label"><input value={el.minLabel ?? ''} onChange={e => upd({ minLabel: e.target.value })} className="input-base" placeholder="Not likely" /></Field>
+            <Field label="High Label"><input value={el.maxLabel ?? ''} onChange={e => upd({ maxLabel: e.target.value })} className="input-base" placeholder="Very likely" /></Field>
           </div>
         </div>
       )}
@@ -222,10 +228,11 @@ function GeneralTab({ element, upd }: { element: FormElement; upd: (p: any) => v
           <Field label="Accepted Types">
             <input value={(el as any).accept ?? ''} onChange={e => upd({ accept: e.target.value })} className="input-base text-xs" placeholder=".pdf,.docx,image/*" />
           </Field>
-          <Field label="Max Size (MB)">
-            <input type="number" min={1} value={(el as any).maxSizeMb ?? 10} onChange={e => upd({ maxSizeMb: Number(e.target.value) })} className="input-base" />
+          <Field label="Max Size (KB)">
+            <input type="number" min={1} value={(el as any).maxSizeKB ?? 10240} onChange={e => upd({ maxSizeKB: Number(e.target.value) })} className="input-base" />
           </Field>
           <Toggle label="Allow Multiple Files" checked={(el as any).multiple ?? false} onChange={v => upd({ multiple: v })} />
+          <Toggle label="Drag & Drop Zone" checked={(el as any).dragDrop !== false} onChange={v => upd({ dragDrop: v })} />
         </div>
       )}
       {/* Calculated expression */}
